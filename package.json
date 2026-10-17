@@ -1,0 +1,9 @@
+{
+  "name": "powermaster-remote",
+  "version": "1.0.0",
+  "description": "NodeJS class to remote control the Array Solutions PowerMaster VSWR meter",
+  "main": "powermaster.js",
+  "scripts": { "test": "node --test" },
+  "license": "MIT",
+  "dependencies": { "serialport": "^12.0.0" }
+}

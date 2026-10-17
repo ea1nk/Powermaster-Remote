@@ -33,10 +33,17 @@ const crc8revtab = [
   0x38, 0x89, 0xEB, 0x5A, 0x2F, 0x9E, 0xFC, 0x4D
 ];
 
+// CRC8 over the payload only (no STX/ETX). The meter expects it complemented.
 function calculateCRC(payload) {
   let crc = 0;
-  for (const byte of payload) {
+  for (const byte of Buffer.from(payload)) {
     crc = crc8revtab[crc ^ byte];
   }
   return crc;
 }
+
+function sentCRC(payload) {
+  return (~calculateCRC(payload)) & 0xFF;
+}
+
+module.exports = { crc8revtab, calculateCRC, sentCRC };
