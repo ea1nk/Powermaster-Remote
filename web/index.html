@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PowerMaster</title>
+<style>
+  :root { --bg:#e9ebee; --fg:#1b1f24; --muted:#6a737d; --line:#c9cdd3; --card:#fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0d1014; --fg:#e6e9ee; --muted:#8b95a3; --line:#2b323c; --card:#161b22; } }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--fg); font:15px/1.4 system-ui,sans-serif; }
+  main { max-width:760px; margin:0 auto; display:grid; gap:14px; }
+
+  /* Front panel, always dark like the real unit */
+  .panel { background:#16181b; border-radius:10px; padding:18px; color:#e8e8e8; box-shadow:0 2px 10px #0005; }
+  .brand { text-align:center; font:700 20px/1 Georgia,serif; letter-spacing:.2em; padding-bottom:12px; position:relative; }
+  .brand::before,.brand::after { content:""; position:absolute; top:10px; width:22%; border-top:2px solid #e8e8e8; }
+  .brand::before { left:0; } .brand::after { right:0; }
+  .lcd { background:#04080a; border:6px solid #d9dbd8; border-radius:4px; padding:12px 16px; font:clamp(16px,4.6vw,30px)/1.2 ui-monospace,"SF Mono",Menlo,monospace; color:#58e8ff; text-shadow:0 0 6px #58e8ff88; transition:opacity .6s; }
+  .lcd.dim { opacity:.45; } .lcd.sleep { opacity:.05; } .lcd.off { color:#58e8ff44; text-shadow:none; }
+  .l1 { display:flex; justify-content:space-between; white-space:pre; }
+  .l2 { min-height:1.2em; margin-top:4px; text-align:center; white-space:pre; }
+  .l2.right { text-align:right; }
+  .bar { display:grid; grid-template-columns:repeat(80,1fr); gap:1px; height:1.1em; }
+  .bar i { background:#58e8ff22; } .bar i.on { background:#58e8ff; }
+  .controls { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-top:16px; flex-wrap:wrap; }
+  .logo { font:800 15px/1 Georgia,serif; background:#e8e8e8; color:#111; padding:6px 10px; border-radius:2px; }
+  .alarmbox { border:2px solid #e8e8e8; border-radius:4px; padding:6px 14px 8px; text-align:center; font-size:11px; font-weight:700; letter-spacing:.05em; }
+  .alarmbox .top { display:flex; justify-content:space-between; gap:28px; }
+  .alarmbox .leds { display:flex; justify-content:center; gap:30px; margin:4px 0; }
+  .dot { width:12px; height:12px; border-radius:50%; background:#3a1313; display:inline-block; border:1px solid #000; }
+  .dot.red.on { background:#ff3b30; box-shadow:0 0 8px #ff3b30; }
+  .dot.yellow { background:#3a3313; } .dot.yellow.on { background:#ffd60a; box-shadow:0 0 8px #ffd60a; }
+  .knob { display:flex; flex-direction:column; align-items:center; gap:4px; font-size:11px; font-weight:700; }
+  .knob button { width:30px; height:30px; border-radius:50%; border:2px solid #666; background:radial-gradient(#fff,#bbb); cursor:pointer; padding:0; }
+  .knob button:active { background:#999; }
+  .call { margin-top:10px; text-align:center; font-size:12px; color:#9aa; letter-spacing:.15em; min-height:1em; }
+
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; display:grid; gap:10px; }
+  .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; min-width:110px; }
+  .seg { display:grid; grid-template-columns:repeat(80,1fr); gap:1px; height:18px; background:#0003; padding:2px; border-radius:3px; }
+  .seg i { background:#58e8ff1a; } .seg i.on { background:#18a8c8; }
+  .seg.ref i.on { background:#d83a30; }
+  .readout { margin-left:auto; font:600 22px ui-monospace,Menlo,monospace; font-variant-numeric:tabular-nums; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }
+  .stats b { display:block; font:600 20px ui-monospace,Menlo,monospace; }
+  .stats span { color:var(--muted); font-size:12px; text-transform:uppercase; }
+  .seq { display:flex; gap:4px; flex-wrap:wrap; }
+  button.btn { padding:5px 10px; border:1px solid var(--line); border-radius:5px; background:var(--card); color:var(--fg); font:13px system-ui; cursor:pointer; }
+  button.btn.sel { background:#18a8c8; border-color:#18a8c8; color:#fff; }
+  select { padding:5px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--fg); font:13px system-ui; }
+  .settings { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:8px 18px; }
+  .settings .row .label { min-width:140px; }
+  .note { font-size:12px; color:var(--muted); }
+  .sel2 { margin-left:auto; display:flex; gap:8px; }
+  details > summary { cursor:pointer; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  details[open] > summary { margin-bottom:10px; }
+  #powerBox > .row, #powerBox > .seg, #powerBox > .stats { margin-top:10px; }
+  dialog { max-width:640px; width:calc(100% - 32px); border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--fg); padding:16px; }
+  dialog::backdrop { background:#0008; }
+  dialog .settings { margin-top:12px; }
+  #conn { font-size:13px; color:var(--muted); } #conn.ok { color:#2ea043; } #conn.bad { color:#f85149; }
+  canvas { width:100%; height:150px; display:block; }
+  details summary { cursor:pointer; color:var(--muted); }
+  form { display:flex; gap:8px; margin-top:8px; }
+  input[type=text] { flex:1; min-width:0; padding:8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); font:14px ui-monospace,monospace; }
+  #log { margin-top:8px; height:130px; overflow:auto; font:13px ui-monospace,monospace; white-space:pre-wrap; color:var(--muted); }
+  #log .err { color:#f85149; } #log .in { color:var(--fg); }
+</style>
+</head>
+<body>
+<main>
+  <div class="panel">
+    <div class="brand">ARRAY SOLUTIONS</div>
+    <div class="lcd off" id="lcd">
+      <div class="l1"><span id="lMode">F</span><span id="lVswr">V -.--</span><span id="lPower">0.00W</span></div>
+      <div class="l2" id="l2"><div class="bar" id="lcdbar"></div></div>
+    </div>
+    <div class="controls">
+      <div class="logo" id="logo">POWER MASTER</div>
+      <div class="alarmbox">
+        <div class="top"><span>VSWR</span><span>POWER</span></div>
+        <div class="leds"><span class="dot red" id="redLed"></span><span class="dot yellow" id="yellowLed"></span></div>
+        <div>ALARM</div>
+      </div>
+      <div class="knob"><button id="alarmReset" data-i18n-title="tReset"></button>ALARM RESET</div>
+      <div class="knob"><button id="modeBtn" title="Peak hold: F → M → S → L → V"></button>PEAK HOLD</div>
+      <div class="knob"><button id="dispMode"></button>POWER DISPLAY</div>
+    </div>
+    <div class="call" id="call"></div>
+  </div>
+
+  <div class="card">
+    <details open id="powerBox"><summary data-i18n="powers"></summary>
+    <div class="row"><span class="label" data-i18n="fwd"></span><span class="readout"><span id="fwd">–</span> W</span></div>
+    <div class="seg" id="fwdBar"></div>
+    <div class="row"><span class="label"><span data-i18n="refl"></span> <span id="refRange"></span></span><span class="readout"><span id="ref">–</span> W</span></div>
+    <div class="seg ref" id="refBar"></div>
+    <div class="stats">
+      <div><span data-i18n="vswr"></span><b id="vswr">–</b></div>
+      <div><span data-i18n="rl"></span><b id="rl">–</b></div>
+      <div><span data-i18n="dbm"></span><b id="dbm">–</b></div>
+      <div><span data-i18n="range"></span><b id="range">–</b></div>
+    </div>
+    </details>
+    <div class="row"><button class="btn" id="cfgBtn" data-i18n="cfg"></button><span class="note" data-i18n="modeHelp"></span><span id="conn"></span><span class="sel2"><select id="lang" aria-label="Language"><option value="es">Español</option><option value="en">English</option></select></span></div>
+  </div>
+
+  <dialog id="cfg">
+    <div class="row"><b data-i18n="cfgTitle"></b><button class="btn" id="cfgClose" style="margin-left:auto" data-i18n="close"></button></div>
+    <div class="note" data-i18n="cfgNote"></div>
+    <div class="note"><span data-i18n="fw"></span>: <span id="fwVer">–</span></div>
+    <div class="row" style="margin-top:10px"><span class="label" data-i18n="callText"></span><input type="text" id="callInput" maxlength="16" style="flex:0 1 220px"><button class="btn" id="callSave" data-i18n="save"></button></div>
+    <div class="settings" id="settings"></div>
+    <div class="note" style="margin-top:12px" id="unsupported"></div>
+  </dialog>
+
+  <div class="card"><details open id="chartBox"><summary data-i18n="chart"></summary><canvas id="chart"></canvas></details></div>
+
+  <div class="card">
+    <details><summary data-i18n="console"></summary>
+      <form id="form"><input type="text" id="cmd" data-i18n-ph="cmdPh" autocomplete="off"><button class="btn sel" data-i18n="send"></button></form>
+      <div id="log"></div>
+    </details>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+// The realtime packet carries powers as integers up to 20200. The manual gives a minimum
+// displayed power of 0.5 W and 10 kW coupler max of ~10100 W, so 1 unit is assumed to be 0.5 W.
+// Override from the URL if your meter differs: /?unit=1
+const POWER_UNIT = Number(new URLSearchParams(location.search).get("unit")) || 0.5;
+const SEGS = 80;
+
+// ---- language (Spanish / English) ----
+const STR = {
+  es: {
+    powers: "Potencias y ROE", fwd: "Directa", refl: "Reflejada", scale: (r) => `(escala ${r} W)`, vswr: "ROE", rl: "Pérdida retorno", dbm: "Directa dBm", range: "Rango barra",
+    cfg: "⚙ Configuración", modeHelp: "Peak hold: F ~0,2 s · M ~1 s · S ~2 s · L ~5 s · V: la barra muestra la reflejada.",
+    connecting: "conectando…", connected: "conectado", offline: "sin conexión",
+    cfgTitle: "Ajustes del medidor", close: "Cerrar",
+    cfgNote: "Equivalen a los menús del frontal. Cada cambio se escribe en la EEPROM del medidor (límite ~1.000.000 de escrituras): cámbialos solo cuando haga falta.",
+    chart: "Últimos 60 s", console: "Consola de comandos", cmdPh: "Comando, p. ej. v?", send: "Enviar",
+    tReset: "Reset de alarmas (comando A)",
+    tPeak: (l) => `Peak hold: ${l} (pulsa para cambiar: F → M → S → L → V)`,
+    set_V: "Alarma ROE", set_l: "Alarma baja potencia (W)", set_h: "Alarma alta potencia (W)", set_a: "Reset automático alarmas", set_P: "Polaridad relé ROE",
+    set_S: "Mostrar indicativo", set_b: "Rangos de barra (W)", set_T: "Trim potencia directa (%)", set_t: "Trim potencia reflejada (%)", set_I: "Intensidad display",
+    set_d: "Potencia mostrada (menú)", dispopts: ["Neta", "Directa"], callText: "Indicativo (máx. 16 car.)", save: "Guardar", fw: "Firmware",
+    unsupported1: "No disponibles por puerto serie (no constan en el protocolo): velocidad (baudios) y refresco del display. Se ajustan desde el frontal.",
+    unsupported2: "No disponibles por puerto serie (no constan en el protocolo): tipo de acoplador, entrada de acoplador / 2 acopladores, velocidad (baudios) y modo toggle. Se ajustan desde el frontal.",
+    tDisp1: "Muestra: Directa ↔ Neta", tDisp2: "Muestra: Directa → Neta → Rev & Fwd",
+    amp: "corta el amplificador", polarity: ["Alarma abre relé", "Alarma cierra relé"], yesno: ["No", "Sí"],
+  },
+  en: {
+    powers: "Power and VSWR", fwd: "Forward", refl: "Reflected", scale: (r) => `(scale ${r} W)`, vswr: "VSWR", rl: "Return loss", dbm: "Forward dBm", range: "Bar range",
+    cfg: "⚙ Settings", modeHelp: "Peak hold: F ~0.2 s · M ~1 s · S ~2 s · L ~5 s · V: bar graph shows reflected power.",
+    connecting: "connecting…", connected: "connected", offline: "offline",
+    cfgTitle: "Meter settings", close: "Close",
+    cfgNote: "Same as the front panel menus. Every change is written to the meter's EEPROM (limit ~1,000,000 writes): change them only when needed.",
+    chart: "Last 60 s", console: "Command console", cmdPh: "Command, e.g. v?", send: "Send",
+    tReset: "Alarm reset (command A)",
+    tPeak: (l) => `Peak hold: ${l} (click to change: F → M → S → L → V)`,
+    set_V: "VSWR alarm", set_l: "Low power alarm (W)", set_h: "High power alarm (W)", set_a: "Auto alarm reset", set_P: "VSWR relay polarity",
+    set_S: "Show call text", set_b: "Bar graph ranges (W)", set_T: "Forward power trim (%)", set_t: "Reverse power trim (%)", set_I: "Display intensity",
+    set_d: "Power display (menu)", dispopts: ["Net", "Forward"], callText: "Call text (max. 16 chars)", save: "Save", fw: "Firmware",
+    unsupported1: "Not available over serial (not in the protocol document): baud rate and display refresh. Set them from the front panel.",
+    unsupported2: "Not available over serial (not in the protocol document): coupler type, coupler input / 2 couplers, baud rate and toggle mode. Set them from the front panel.",
+    tDisp1: "Display: Forward ↔ Net", tDisp2: "Display: Forward → Net → Rev & Fwd",
+    amp: "trips amplifier", polarity: ["Alarm opens relay", "Alarm closes relay"], yesno: ["No", "Yes"],
+  },
+};
+function storedLang() { try { return localStorage.getItem("lang"); } catch { return null; } }
+let lang = new URLSearchParams(location.search).get("lang") || storedLang() || (navigator.language || "").slice(0, 2);
+if (!STR[lang]) lang = "en";
+// Meter model: the serial protocol documents (firmware v2/v3) and the manual Rev 3.5 are for the
+// PowerMaster I; the PowerMaster II manual (Rev 4.1) adds a few things (see applyModel).
+// Hidden on purpose: the PowerMaster II protocol is unverified, so the UI targets the PowerMaster I.
+// "?model=2" only switches the labels that differ in the PowerMaster II manual.
+let model = new URLSearchParams(location.search).get("model") || "1";
+if (model !== "2") model = "1";
+const t = (k, ...a) => (typeof STR[lang][k] === "function" ? STR[lang][k](...a) : STR[lang][k]);
+
+function applyModel() {
+  $("logo").textContent = model === "2" ? "POWER MASTER II" : "POWER MASTER";
+  document.title = model === "2" ? "PowerMaster II" : "PowerMaster";
+  if (model !== "2" && state.show === 2) state.show = 0; // Rev & Fwd exists only on the PowerMaster II
+  $("dispMode").title = t("tDisp" + model);
+  $("unsupported").textContent = t("unsupported" + model);
+  if ($("settings").children.length) rebuildSettings();
+  if (state.last) render(state.last);
+}
+function applyLang() {
+  document.documentElement.lang = lang;
+  $("lang").value = lang;
+  for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = t(el.dataset.i18n);
+  for (const el of document.querySelectorAll("[data-i18n-ph]")) el.placeholder = t(el.dataset.i18nPh);
+  for (const el of document.querySelectorAll("[data-i18n-title]")) el.title = t(el.dataset.i18nTitle);
+  setConn(state.conn);
+  setMode(state.mode);
+  applyModel();
+  if (state.vec.B !== undefined || $("settings").children.length) rebuildSettings();
+  if (state.last) render(state.last);
+  draw();
+}
+function setConn(c) {
+  state.conn = c;
+  $("conn").textContent = t(c);
+  $("conn").className = c === "connected" ? "ok" : c === "offline" ? "bad" : "";
+}
+const DIM_AFTER = 2 * 60 * 1000, SLEEP_AFTER = 10 * 60 * 1000; // manual: dim at 2 min, dark at 10 min without power
+
+// Letter shown on the display -> meter mode number. M0-M2 and M3 (VSWR dip) are documented;
+// "L" = M4 is inferred (M4 was "timing TBD" in the v3 protocol document).
+const MODES = [["F", 0], ["M", 1], ["S", 2], ["L", 4], ["V", 3]];
+const state = { conn: "connecting", net: false, show: 0, mode: 0, ranges: [250, 500, 1250], callShow: false, call: "", last: null, lastPower: Date.now(), vec: {} };
+const history = [];
+const WINDOW = 60000;
+
+for (const id of ["lcdbar", "fwdBar", "refBar"]) $(id).innerHTML = "<i></i>".repeat(SEGS);
+
+// ---- display helpers ----
+// Manuals: under 100 W shown in tenths; the PowerMaster II also shows hundredths under 10 W.
+function fmtPower(w) { return model === "2" && w < 10 ? w.toFixed(2) : w < 100 ? w.toFixed(1) : String(Math.round(w)); }
+function pickRange(value) { return state.ranges.find((r) => r >= value) || state.ranges[state.ranges.length - 1]; }
+function setBar(el, frac) {
+  const n = Math.round(Math.min(1, Math.max(0, frac)) * SEGS);
+  [...el.children].forEach((s, i) => s.classList.toggle("on", i < n));
+}
+
+// display: 0 = forward, 1 = net, 2 = reverse & forward
+function render(d) {
+  state.last = d;
+  const fwd = d.forwardPower * POWER_UNIT, ref = d.reflectedPower * POWER_UNIT;
+  if (fwd > 0) state.lastPower = Date.now();
+  const shown = state.show === 1 ? Math.max(0, fwd - ref) : fwd;
+  const vs = d.vswr ? d.vswr.toFixed(2) : "-.--";
+  const modeLetter = MODES.find((m) => m[1] === state.mode)?.[0] || "?";
+  const vMode = state.mode === 3;
+  $("lcd").classList.remove("off");
+  $("lMode").textContent = state.show === 1 ? "N" : modeLetter;
+  $("lVswr").textContent = "V " + vs;
+  $("lPower").textContent = fmtPower(shown) + "W";
+
+  const barValue = vMode ? ref : shown, range = pickRange(barValue);
+  const l2 = $("l2");
+  l2.className = "l2";
+  if (state.show === 2) {
+    l2.classList.add("right"); l2.textContent = "R " + fmtPower(ref) + "W";
+  } else if (fwd === 0 && state.callShow && state.call) {
+    l2.textContent = state.call;
+  } else {
+    if (!l2.querySelector(".bar")) l2.innerHTML = '<div class="bar" id="lcdbar">' + "<i></i>".repeat(SEGS) + "</div>";
+    setBar(l2.querySelector(".bar"), barValue / range);
+  }
+
+  setBar($("fwdBar"), fwd / pickRange(fwd));
+  setBar($("refBar"), ref / pickRange(ref));
+  $("refRange").textContent = t("scale", pickRange(ref));
+  $("fwd").textContent = fmtPower(fwd); $("ref").textContent = fmtPower(ref);
+  $("vswr").textContent = vs;
+  const rho = fwd > 0 ? Math.sqrt(ref / fwd) : 0;
+  $("rl").textContent = rho > 0 ? (-20 * Math.log10(rho)).toFixed(1) + " dB" : "–";
+  $("dbm").textContent = fwd > 0 ? (10 * Math.log10(fwd * 1000)).toFixed(1) : "–";
+  $("range").textContent = pickRange(fwd) + " W";
+  $("redLed").classList.toggle("on", d.redLed);
+  $("yellowLed").classList.toggle("on", d.yellowLed);
+  updateSleep();
+}
+
+// Same as the real display: dim after 2 min without power, dark after 10 min.
+function updateSleep() {
+  const idle = Date.now() - state.lastPower;
+  $("lcd").classList.toggle("dim", idle >= DIM_AFTER && idle < SLEEP_AFTER);
+  $("lcd").classList.toggle("sleep", idle >= SLEEP_AFTER);
+}
+setInterval(updateSleep, 5000);
+
+function pushHistory(d) {
+  const now = Date.now();
+  history.push({ t: now, fwd: d.forwardPower * POWER_UNIT, ref: d.reflectedPower * POWER_UNIT });
+  while (history.length && now - history[0].t > WINDOW) history.shift();
+  draw();
+}
+function draw() {
+  const c = $("chart"), dpr = devicePixelRatio || 1;
+  c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr;
+  const g = c.getContext("2d"); g.scale(dpr, dpr);
+  const w = c.clientWidth, h = c.clientHeight, css = getComputedStyle(document.documentElement);
+  const now = Date.now(), x = (t) => w - ((now - t) / WINDOW) * w;
+  g.strokeStyle = css.getPropertyValue("--line");
+  for (let i = 0; i <= 4; i++) { const y = h - 14 - (i / 4) * (h - 20); g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+  const max = Math.max(100, ...history.map((p) => p.fwd));
+  g.font = "11px system-ui";
+  [["fwd", "#18a8c8", t("fwd")], ["ref", "#d83a30", t("refl")]].forEach(([k, color, name], i) => {
+    g.strokeStyle = color; g.lineWidth = 1.5; g.beginPath();
+    history.forEach((p, j) => { const y = h - 14 - (p[k] / max) * (h - 20); j ? g.lineTo(x(p.t), y) : g.moveTo(x(p.t), y); });
+    g.stroke(); g.fillStyle = color; g.fillText(name, 8 + i * 70, 12);
+  });
+  g.fillStyle = css.getPropertyValue("--muted"); g.fillText(Math.round(max) + " W", w - 60, 12);
+}
+addEventListener("resize", draw);
+$("chartBox").addEventListener("toggle", draw); // the canvas has no size while collapsed
+// Remember which panels are collapsed.
+for (const id of ["powerBox", "chartBox"]) {
+  try { if (localStorage.getItem("open_" + id) === "0") $(id).open = false; } catch {}
+  $(id).addEventListener("toggle", () => { try { localStorage.setItem("open_" + id, $(id).open ? "1" : "0"); } catch {} });
+}
+
+// ---- meter I/O ----
+async function query(command) {
+  const r = await fetch("/api/command", { method: "POST", body: JSON.stringify({ command }) });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j.response;
+}
+function log(text, cls) {
+  const el = document.createElement("div"); el.textContent = text; if (cls) el.className = cls;
+  $("log").append(el); $("log").scrollTop = $("log").scrollHeight;
+}
+async function send(command) {
+  log("→ " + command);
+  try {
+    const r = await query(command); log("← " + r, "in");
+    // Set commands are answered with "A": apply the value we just sent. Queries answer with the value.
+    apply(r === "A" ? command : r);
+    return r;
+  }
+  catch (e) { log(e.message, "err"); }
+}
+const nums = (s) => (String(s).replace(/^[A-Za-z]/, "").match(/-?\d+(\.\d+)?/g) || []).map(Number);
+
+// ---- peak hold mode knob: F -> M -> S -> L -> V ----
+$("modeBtn").onclick = () => {
+  const i = MODES.findIndex((m) => m[1] === state.mode);
+  send("M" + MODES[(i + 1) % MODES.length][1]);
+};
+function setMode(n) {
+  state.mode = n;
+  const letter = MODES.find((m) => m[1] === n)?.[0];
+  $("modeBtn").title = t("tPeak", letter || "?");
+  if (state.last) render(state.last);
+}
+
+// ---- settings (menu items) ----
+const onOff = (v) => (v ? v : "Off");
+const swrOpt = (v) => (v ? v.toFixed(1) : "Off");
+// Protocol says "0-3": the index into the menu list. PowerMaster I: Off/5/10/20 s, PowerMaster II: Off/1/2/5 s.
+const AUTO_RESET = { 1: ["Off (manual)", "5 s", "10 s", "20 s"], 2: ["Off (manual)", "1 s", "2 s", "5 s"] };
+const defs = [
+  { key: "V", label: "Alarma ROE", q: "V?", opts: () => (state.vec.W || [0, 1.5, 2, 2.5, 3]).map(swrOpt), cmd: (i) => "V" + i },
+  { key: "l", label: "Alarma baja potencia (W)", q: "l?", opts: () => (state.vec.L || []).map(onOff), cmd: (i) => "l" + i },
+  { key: "h", label: "Alarma alta potencia (W)", q: "h?", opts: () => (state.vec.H || []).map(onOff), cmd: (i) => `h${i},${$("amp").checked ? 1 : 0}`,
+    extra: () => `<label class="note"><input type="checkbox" id="amp"> ${t("amp")}</label>` },
+  { key: "a", label: "Reset automático alarmas", q: "a?", opts: () => AUTO_RESET[model], cmd: (i) => "a" + i },
+  { key: "P", label: "Polaridad relé ROE", q: "P?", opts: () => t("polarity"), cmd: (i) => "P" + i },
+  { key: "S", label: "Mostrar indicativo", q: "S?", opts: () => t("yesno"), cmd: (i) => "S" + i },
+  { key: "b", label: "Rangos de barra (W)", q: "b?", opts: () => (state.vec.B || []).length ? [0, 1, 2, 3].map((i) => state.vec.B.slice(i * 3, i * 3 + 3).join(" / ")) : [], cmd: (i) => "b" + i },
+  { key: "T", label: "Trim potencia directa (%)", q: "T?", opts: () => trimOpts(), cmd: (i) => "T" + (trimOpts()[i]) , byValue: true },
+  { key: "t", label: "Trim potencia reflejada (%)", q: "t?", opts: () => trimOpts(), cmd: (i) => "t" + (trimOpts()[i]), byValue: true },
+  { key: "d", label: "", q: "d?", opts: () => t("dispopts"), cmd: (i) => "d" + i },
+  { key: "I", label: "Intensidad display", q: "I?", opts: () => ["1", "2", "3", "4"], cmd: (i) => "I" + i },
+];
+function trimOpts() {
+  const [min, max] = state.vec.U || [-10, 10];
+  return Array.from({ length: max - min + 1 }, (_, i) => min + i);
+}
+function buildSettings() {
+  $("settings").innerHTML = "";
+  for (const d of defs) {
+    const row = document.createElement("div"); row.className = "row";
+    row.innerHTML = `<span class="label">${t("set_" + d.key)}</span><select id="set_${d.key}"></select>${d.extra ? d.extra() : ""}`;
+    $("settings").append(row);
+    const sel = row.querySelector("select");
+    d.opts().forEach((o, i) => sel.add(new Option(o, i)));
+    sel.onchange = () => send(d.cmd(Number(sel.value)));
+  }
+}
+// Rebuild the settings dialog in the current language, keeping the values already read.
+function rebuildSettings() {
+  const vals = defs.map((d) => $("set_" + d.key)?.value), amp = $("amp")?.checked;
+  buildSettings();
+  defs.forEach((d, i) => { if (vals[i] !== undefined && $("set_" + d.key)) $("set_" + d.key).value = vals[i]; });
+  if ($("amp") && amp !== undefined) $("amp").checked = amp;
+}
+function setSelect(key, rawValue) {
+  const sel = $("set_" + key); if (!sel) return;
+  const d = defs.find((x) => x.key === key);
+  sel.value = d.byValue ? String(trimOpts().indexOf(rawValue)) : String(rawValue);
+}
+// Handles any "Xvalue" response (to a query, a set command, or sent spontaneously by the meter).
+const handlers = {
+  M: (v) => setMode(v[0]),
+  b: (v) => { setSelect("b", v[0]); if (state.vec.B) { state.ranges = state.vec.B.slice(v[0] * 3, v[0] * 3 + 3); if (state.last) render(state.last); } },
+  h: (v) => { setSelect("h", v[0]); if (v[1] !== undefined && $("amp")) $("amp").checked = v[1] === 1; },
+  S: (v) => { setSelect("S", v[0]); state.callShow = v[0] === 1; if (state.last) render(state.last); },
+  d: (v) => { setSelect("d", v[0]); state.show = v[0] === 0 ? 1 : 0; if (state.last) render(state.last); }, // d: 1 = forward, 0 = net
+};
+function apply(resp) {
+  const m = /^([A-Za-z])(-?[\d.]+(?:,-?[\d.]+)?)$/.exec(String(resp).trim());
+  if (!m) return;
+  const v = nums(m[2]);
+  if (handlers[m[1]]) handlers[m[1]](v);
+  else if (defs.some((d) => d.key === m[1])) setSelect(m[1], v[0]);
+}
+
+async function init() {
+  const get = async (cmd) => { try { return await query(cmd); } catch (e) { log(cmd + ": " + e.message, "err"); } };
+  for (const [k, cmd] of [["B", "B?"], ["H", "H?"], ["L", "L?"], ["W", "W?"], ["U", "U?"]]) {
+    const r = await get(cmd); if (r) state.vec[k] = nums(r);
+  }
+  buildSettings();
+  const call = await get("C?");
+  state.call = call && call !== "N" ? call : "";
+  $("call").textContent = state.call; $("callInput").value = state.call;
+  const fw = await get("v?"); if (fw) $("fwVer").textContent = fw;
+  for (const cmd of ["M?", "d?", "S?", "b?", "V?", "l?", "h?", "a?", "P?", "T?", "t?", "I?"]) {
+    const r = await get(cmd); if (r) apply(r);
+  }
+}
+
+const es = new EventSource("/events");
+es.onopen = () => { setConn("connected"); init(); };
+es.onerror = () => setConn("offline");
+es.onmessage = (e) => { const d = JSON.parse(e.data); render(d); pushHistory(d); };
+es.addEventListener("meter", (e) => { const m = JSON.parse(e.data); log("← " + m, "in"); apply(m); });
+
+$("lang").onchange = () => {
+  lang = $("lang").value;
+  try { localStorage.setItem("lang", lang); } catch {}
+  applyLang();
+};
+applyLang();
+$("callSave").onclick = async () => {
+  // Protocol: "C your call sign" stores the text, "C?" reads it back (what the meter kept is shown).
+  await send("C " + $("callInput").value);
+  try { const c = await query("C?"); state.call = c; $("callInput").value = c; $("call").textContent = c; if (state.last) render(state.last); } catch (e) { log(e.message, "err"); }
+};
+$("alarmReset").onclick = () => send("A");
+$("cfgBtn").onclick = () => $("cfg").showModal();
+$("cfgClose").onclick = () => $("cfg").close();
+$("cfg").addEventListener("click", (e) => { if (e.target === $("cfg")) $("cfg").close(); });
+// Forward / Net / Reverse+Forward is a browser-only display choice: it does not write to the meter.
+$("dispMode").onclick = () => { state.show = (state.show + 1) % (model === "2" ? 3 : 2); if (state.last) render(state.last); };
+$("form").onsubmit = (e) => { e.preventDefault(); const v = $("cmd").value.trim(); if (v) { send(v); $("cmd").value = ""; } };
+</script>
+</body>
+</html>
